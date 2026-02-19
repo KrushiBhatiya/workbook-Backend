@@ -8,16 +8,17 @@ const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
 /**
  * Validates a student's answer using Gemini AI.
- * No stored correct answer is needed — Gemini evaluates based on general knowledge.
+ * Can evaluate text answers and/or images of handwritten work.
  * @param {string} question - The question text.
  * @param {string} studentAnswer - The answer provided by the student.
- * @param {string} languageName - The programming language context (e.g., "C", "C++", "Python").
+ * @param {string} languageName - The programming language context.
+ * @param {string} imageUrl - (Optional) URL of the uploaded image of work.
  * @returns {Promise<{isValid: boolean, message: string}>}
  */
-const validateAnswer = async (question, studentAnswer, languageName) => {
+const validateAnswer = async (question, studentAnswer, languageName, imageUrl = null) => {
     try {
-        if (!studentAnswer || studentAnswer.trim() === '') {
-            return { isValid: false, message: "Please provide an answer before submitting." };
+        if ((!studentAnswer || studentAnswer.trim() === '') && !imageUrl) {
+            return { isValid: false, message: "Please provide an answer or upload an image before submitting." };
         }
 
         const languageContext = languageName
@@ -30,29 +31,53 @@ You are a strict educational answer evaluator for a programming workbook.
 ${languageContext}
 
 QUESTION: "${question}"
-STUDENT'S ANSWER: "${studentAnswer}"
+STUDENT'S TEXT ANSWER: "${studentAnswer || 'No text provided'}"
 
 TASK:
 Evaluate whether the student's answer is correct for the given question${languageName ? ` in the context of ${languageName}` : ''}.
+${imageUrl ? 'An image of the student\'s work has been provided. If the student provided no text, evaluate based ENTIRELY on the image. The image might contain handwritten code or diagrams.' : 'Evaluate based on the provided text answer.'}
 
 STRICT RULES:
-1. If the answer is correct or substantially correct for this specific language/context, respond with EXACTLY the single word: CORRECT
-2. If the answer is wrong, incomplete, irrelevant, or written for a different language/context, respond with a brief explanation (max 20 words) of why it is wrong.
-3. NEVER use the word "CORRECT" in your explanation if the answer is wrong.
-4. Do NOT include any markdown, quotes, or formatting. Plain text only.
+1. If the solution is correct, respond with "CORRECT" as the very last word of your response. You may provide a brief explanation before it if helpful, but the LAST WORD must be "CORRECT".
+2. If the solution is wrong, respond with a brief explanation (max 20 words) and do NOT end with the word "CORRECT".
+3. Plain text only. No markdown.
 
 YOUR RESPONSE:`;
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text().trim();
+        let result;
+        if (imageUrl) {
+            // Fetch the image and convert to base64 for Gemini
+            const response = await fetch(imageUrl);
+            const buffer = await response.arrayBuffer();
+            const base64Data = Buffer.from(buffer).toString('base64');
+            const mimeType = response.headers.get('content-type') || 'image/jpeg';
+
+            result = await model.generateContent([
+                prompt,
+                {
+                    inlineData: {
+                        data: base64Data,
+                        mimeType: mimeType
+                    }
+                }
+            ]);
+        } else {
+            result = await model.generateContent(prompt);
+        }
+
+        const responseText = await result.response;
+        const text = responseText.text().trim();
 
         // Log for debugging
-        console.log(`[Gemini] Lang: "${languageName}" | Q: "${question}" | A: "${studentAnswer}" | Response: "${text}"`);
+        console.log(`[Gemini] Lang: "${languageName}" | Q: "${question}" | A: "${studentAnswer}" | Image: ${imageUrl ? 'Yes' : 'No'} | Response: "${text}"`);
 
-        // Strip punctuation and check for exact "CORRECT"
-        const normalized = text.replace(/[^a-zA-Z]/g, '').toUpperCase();
-        if (normalized === 'CORRECT') {
+        // Check if the response indicates correctness. 
+        // We look for the word "CORRECT" at the end, but ensure it's not "INCORRECT".
+        const upperText = text.toUpperCase().replace(/[^A-Z ]/g, '');
+        const words = upperText.split(/\s+/);
+        const lastWord = words[words.length - 1];
+
+        if (lastWord === 'CORRECT') {
             return { isValid: true, message: "Correct! Well done." };
         } else {
             return { isValid: false, message: text || "Incorrect... Try Again." };

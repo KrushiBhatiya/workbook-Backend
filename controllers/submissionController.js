@@ -2,6 +2,7 @@ const Submission = require('../models/Submission');
 const Student = require('../models/Student'); // Import Student model
 const Question = require('../models/Question'); // Import Question model
 const { validateAnswer } = require('../utils/geminiService');
+const { uploadImage } = require('../utils/cloudinary');
 
 // @desc    Get submissions
 // @route   GET /api/submissions
@@ -85,13 +86,29 @@ const getSubmissions = async (req, res) => {
 // @route   POST /api/submissions
 // @access  Private (Student)
 const createSubmission = async (req, res) => {
-    const { courseId, languageId, topicId, questionId, answerText, imageUrl, facultyId } = req.body;
+    const { courseId, languageId, topicId, questionId, answerText, facultyId } = req.body;
+    let { imageUrl } = req.body;
 
     if (!courseId || !languageId || !topicId || !questionId || !facultyId) {
         return res.status(400).json({ message: 'Missing required fields' });
     }
 
+    if (!answerText && !req.file && !imageUrl) {
+        return res.status(400).json({ message: 'At least one of answer text or image is required.' });
+    }
+
     try {
+        // Handle image upload if a file is provided
+        if (req.file) {
+            try {
+                const uploadResult = await uploadImage(req.file.buffer);
+                imageUrl = uploadResult.secure_url;
+            } catch (uploadError) {
+                console.error("Cloudinary Upload Error:", uploadError);
+                return res.status(500).json({ message: "Failed to upload image to Cloudinary" });
+            }
+        }
+
         // Find the Student document corresponding to the logged-in User
         const student = await Student.findOne({ email: req.user.email });
         if (!student) {
@@ -116,7 +133,7 @@ const createSubmission = async (req, res) => {
         }
         const languageName = questionData.languageId?.name || '';
         try {
-            const validation = await validateAnswer(questionData.question, answerText, languageName);
+            const validation = await validateAnswer(questionData.question, answerText, languageName, imageUrl);
             if (!validation.isValid) {
                 // Return 400 with the AI's feedback message — do NOT save the submission
                 return res.status(400).json({ message: validation.message });
