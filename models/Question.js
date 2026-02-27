@@ -23,6 +23,10 @@ const questionSchema = new mongoose.Schema({
     validationLogic: {
         type: String,
         default: ''
+    },
+    imageUrl: {
+        type: String,
+        default: ''
     }
 }, { timestamps: true });
 

@@ -1,4 +1,5 @@
 const Question = require('../models/Question');
+const { uploadImage } = require('../utils/cloudinary');
 
 // @desc    Get questions
 // @route   GET /api/questions
@@ -29,18 +30,32 @@ const getQuestions = async (req, res) => {
 // @route   POST /api/questions
 // @access  Private (Faculty)
 const createQuestion = async (req, res) => {
-    const { question, languageId, topicId } = req.body;
+    const { question, languageId, topicId, validationLogic } = req.body;
+    let imageUrl = '';
 
-    if (!question || !languageId || !topicId) {
-        return res.status(400).json({ message: 'Please add all fields' });
+    if ((!question && !req.file) || !languageId || !topicId) {
+        return res.status(400).json({ message: 'Please add either a question text or an image' });
     }
 
     try {
+        // Handle image upload if a file is provided
+        if (req.file) {
+            try {
+                const uploadResult = await uploadImage(req.file.buffer, 'workbook/questions');
+                imageUrl = uploadResult.secure_url;
+            } catch (uploadError) {
+                console.error("Cloudinary Upload Error:", uploadError);
+                return res.status(500).json({ message: "Failed to upload image to Cloudinary" });
+            }
+        }
+
         const questionData = await Question.create({
             question,
             languageId,
             topicId,
-            facultyId: req.user.id
+            facultyId: req.user.id,
+            validationLogic: validationLogic || '',
+            imageUrl
         });
         res.status(200).json(questionData);
     } catch (error) {
@@ -63,7 +78,20 @@ const updateQuestion = async (req, res) => {
             return res.status(401).json({ message: 'User not authorized' });
         }
 
-        const updatedQuestion = await Question.findByIdAndUpdate(req.params.id, req.body, {
+        let updateData = { ...req.body };
+
+        // Handle image upload if a new file is provided
+        if (req.file) {
+            try {
+                const uploadResult = await uploadImage(req.file.buffer, 'workbook/questions');
+                updateData.imageUrl = uploadResult.secure_url;
+            } catch (uploadError) {
+                console.error("Cloudinary Upload Error:", uploadError);
+                return res.status(500).json({ message: "Failed to upload image to Cloudinary" });
+            }
+        }
+
+        const updatedQuestion = await Question.findByIdAndUpdate(req.params.id, updateData, {
             new: true,
         }).populate('languageId', 'name').populate('topicId', 'name');
 
