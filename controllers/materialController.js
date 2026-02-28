@@ -18,8 +18,10 @@ exports.createMaterial = async (req, res) => {
         let pdfs = [];
         if (file) {
             // Upload to Cloudinary with descriptive name
-            const result = await uploadImage(file.buffer, 'workbook/materials', name);
+            // Upload to Cloudinary with descriptive name and metadata
+            const result = await uploadImage(file.buffer, 'workbook/materials', name, name);
             pdfs.push({
+                name: name,
                 url: result.secure_url,
                 public_id: result.public_id,
                 resource_type: result.resource_type
@@ -94,6 +96,11 @@ exports.appendPDF = async (req, res) => {
             return res.status(404).json({ message: 'Material not found' });
         }
 
+        // Check for duplicate sub-material name
+        if (name && material.pdfs.some(pdf => pdf.name === name)) {
+            return res.status(400).json({ message: 'already have that sub material' });
+        }
+
         let index = 0;
         for (const file of files) {
             let finalName = name || file.originalname;
@@ -101,8 +108,8 @@ exports.appendPDF = async (req, res) => {
                 finalName = `${name}-${index}`;
             }
 
-            // Upload to Cloudinary with descriptive name
-            const result = await uploadImage(file.buffer, 'workbook/materials', finalName);
+            // Upload to Cloudinary with descriptive name and metadata
+            const result = await uploadImage(file.buffer, 'workbook/materials', finalName, finalName);
 
             console.log('Append Final Result:', {
                 url: result.secure_url,
