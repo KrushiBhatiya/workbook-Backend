@@ -3,12 +3,13 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const connectDB = require('./config/db');
 
-const { seedAdmin } = require('./controllers/authController');
+const { seedAdmin, seedDefaultFaculty } = require('./controllers/authController');
 
 dotenv.config();
 
 connectDB().then(() => {
     seedAdmin();
+    seedDefaultFaculty();
 });
 
 const app = express();

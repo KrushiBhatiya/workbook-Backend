@@ -2,7 +2,7 @@ const Submission = require('../models/Submission');
 const Student = require('../models/Student'); // Import Student model
 const Question = require('../models/Question'); // Import Question model
 const { validateAnswer } = require('../utils/geminiService');
-const { uploadImage } = require('../utils/cloudinary');
+const { uploadPhoto } = require('../utils/cloudinary');
 
 // @desc    Get submissions
 // @route   GET /api/submissions
@@ -101,7 +101,7 @@ const createSubmission = async (req, res) => {
         // Handle image upload if a file is provided
         if (req.file) {
             try {
-                const uploadResult = await uploadImage(req.file.buffer);
+                const uploadResult = await uploadPhoto(req.file.buffer, 'workbook/submissions', req.file.originalname || 'submission');
                 imageUrl = uploadResult.secure_url;
             } catch (uploadError) {
                 console.error("Cloudinary Upload Error:", uploadError);

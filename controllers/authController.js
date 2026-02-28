@@ -110,8 +110,33 @@ const seedAdmin = async () => {
     }
 };
 
+// Internal function to seed default faculty
+const seedDefaultFaculty = async () => {
+    try {
+        const facultyEmail = 'krushi@gmail.com';
+        const facultyExists = await User.findOne({ email: facultyEmail });
+
+        if (!facultyExists) {
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash('krushi.workbook.5503', salt);
+
+            await User.create({
+                name: 'krushi',
+                username: 'krushi',
+                email: facultyEmail,
+                password: hashedPassword,
+                role: 'faculty'
+            });
+            console.log('Default Faculty Account Created: krushi@gmail.com / username: krushi');
+        }
+    } catch (error) {
+        console.error('Error seeding default faculty:', error);
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
-    seedAdmin
+    seedAdmin,
+    seedDefaultFaculty
 };

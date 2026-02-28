@@ -1,5 +1,5 @@
 const Question = require('../models/Question');
-const { uploadImage } = require('../utils/cloudinary');
+const { uploadPhoto } = require('../utils/cloudinary');
 
 // @desc    Get questions
 // @route   GET /api/questions
@@ -41,7 +41,7 @@ const createQuestion = async (req, res) => {
         // Handle image upload if a file is provided
         if (req.file) {
             try {
-                const uploadResult = await uploadImage(req.file.buffer, 'workbook/questions');
+                const uploadResult = await uploadPhoto(req.file.buffer, 'workbook/questions', req.file.originalname || 'question');
                 imageUrl = uploadResult.secure_url;
             } catch (uploadError) {
                 console.error("Cloudinary Upload Error:", uploadError);
@@ -83,7 +83,7 @@ const updateQuestion = async (req, res) => {
         // Handle image upload if a new file is provided
         if (req.file) {
             try {
-                const uploadResult = await uploadImage(req.file.buffer, 'workbook/questions');
+                const uploadResult = await uploadPhoto(req.file.buffer, 'workbook/questions', req.file.originalname || 'question');
                 updateData.imageUrl = uploadResult.secure_url;
             } catch (uploadError) {
                 console.error("Cloudinary Upload Error:", uploadError);

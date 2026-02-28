@@ -64,4 +64,30 @@ const uploadImage = async (fileBuffer, folder = 'workbook', fileName = 'material
     }
 };
 
-module.exports = { uploadImage };
+const uploadPhoto = async (fileBuffer, folder = 'workbook', originalName = 'photo') => {
+    try {
+        const b64 = fileBuffer.toString('base64');
+        // Let Cloudinary handle the format. Using a generic image data URI.
+        const dataURI = `data:image/png;base64,${b64}`;
+
+        const sanitizedName = originalName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const suffix = Math.round(Math.random() * 1E4);
+        const public_id = `${sanitizedName}_${suffix}`;
+
+        const options = {
+            folder,
+            resource_type: 'image',
+            type: 'upload',
+            access_mode: 'public',
+            public_id: public_id,
+        };
+
+        const result = await cloudinary.uploader.upload(dataURI, options);
+        return result;
+    } catch (error) {
+        console.error('Cloudinary Photo Upload Error:', error);
+        throw error;
+    }
+};
+
+module.exports = { uploadImage, uploadPhoto };
