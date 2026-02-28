@@ -9,17 +9,33 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-const uploadImage = async (fileBuffer, folder = 'workbook') => {
-    return new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-            { folder },
-            (error, result) => {
-                if (error) reject(error);
-                else resolve(result);
-            }
-        );
-        uploadStream.end(fileBuffer);
-    });
+const uploadImage = async (fileBuffer, folder = 'workbook', fileName = 'material') => {
+    try {
+        const b64 = Buffer.from(fileBuffer).toString('base64');
+        const dataURI = `data:application/pdf;base64,${b64}`;
+
+        // Sanitize material name
+        const sanitizedName = fileName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+        // Unique suffix to prevent Cloudinary overwriting conflicts
+        const suffix = Math.round(Math.random() * 1E4);
+        const public_id = `${sanitizedName}_${suffix}`;
+
+        const options = {
+            folder,
+            resource_type: 'image',
+            type: 'upload',
+            access_mode: 'public',
+            public_id: public_id,
+            format: 'pdf' // Ensure it stays a PDF
+        };
+
+        const result = await cloudinary.uploader.upload(dataURI, options);
+        return result;
+    } catch (error) {
+        console.error('Cloudinary Upload Error:', error);
+        throw error;
+    }
 };
 
 module.exports = { uploadImage };
