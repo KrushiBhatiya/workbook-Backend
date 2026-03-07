@@ -21,6 +21,11 @@ const createCourse = async (req, res) => {
     }
 
     try {
+        const courseExists = await Course.findOne({ name: req.body.name, facultyId: req.user.id });
+        if (courseExists) {
+            return res.status(400).json({ message: 'Already exist' });
+        }
+
         const course = await Course.create({
             name: req.body.name,
             facultyId: req.user.id,
@@ -45,6 +50,14 @@ const updateCourse = async (req, res) => {
 
         if (course.facultyId.toString() !== req.user.id) {
             return res.status(401).json({ message: 'User not authorized' });
+        }
+
+        // Duplicate check on update
+        if (req.body.name && req.body.name !== course.name) {
+            const courseExists = await Course.findOne({ name: req.body.name, facultyId: req.user.id });
+            if (courseExists) {
+                return res.status(400).json({ message: 'Already exist' });
+            }
         }
 
         const updatedCourse = await Course.findByIdAndUpdate(req.params.id, req.body, {

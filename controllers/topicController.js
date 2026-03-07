@@ -31,6 +31,16 @@ const createTopic = async (req, res) => {
     }
 
     try {
+        const topicExists = await Topic.findOne({
+            name,
+            languageId,
+            facultyId: req.user.id
+        });
+
+        if (topicExists) {
+            return res.status(400).json({ message: 'Already exist' });
+        }
+
         const topic = await Topic.create({
             name,
             languageId,
@@ -55,6 +65,21 @@ const updateTopic = async (req, res) => {
 
         if (topic.facultyId.toString() !== req.user.id) {
             return res.status(401).json({ message: 'User not authorized' });
+        }
+
+        // Duplicate check on update
+        const newName = req.body.name || topic.name;
+        const newLanguageId = req.body.languageId || topic.languageId;
+
+        if (newName !== topic.name || newLanguageId.toString() !== topic.languageId.toString()) {
+            const topicExists = await Topic.findOne({
+                name: newName,
+                languageId: newLanguageId,
+                facultyId: req.user.id
+            });
+            if (topicExists) {
+                return res.status(400).json({ message: 'Already exist' });
+            }
         }
 
         const updatedTopic = await Topic.findByIdAndUpdate(req.params.id, req.body, {

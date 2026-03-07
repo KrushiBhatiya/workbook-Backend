@@ -21,6 +21,11 @@ const createLanguage = async (req, res) => {
     }
 
     try {
+        const languageExists = await Language.findOne({ name: req.body.name, facultyId: req.user.id });
+        if (languageExists) {
+            return res.status(400).json({ message: 'Already exist' });
+        }
+
         const language = await Language.create({
             name: req.body.name,
             facultyId: req.user.id
@@ -44,6 +49,14 @@ const updateLanguage = async (req, res) => {
 
         if (language.facultyId.toString() !== req.user.id) {
             return res.status(401).json({ message: 'User not authorized' });
+        }
+
+        // Duplicate check on update
+        if (req.body.name && req.body.name !== language.name) {
+            const languageExists = await Language.findOne({ name: req.body.name, facultyId: req.user.id });
+            if (languageExists) {
+                return res.status(400).json({ message: 'Already exist' });
+            }
         }
 
         const updatedLanguage = await Language.findByIdAndUpdate(req.params.id, req.body, {

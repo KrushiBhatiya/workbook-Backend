@@ -38,6 +38,19 @@ const createQuestion = async (req, res) => {
     }
 
     try {
+        // Duplicate check (only applies if a question text is provided)
+        if (question) {
+            const questionExists = await Question.findOne({
+                question,
+                languageId,
+                topicId,
+                facultyId: req.user.id
+            });
+            if (questionExists) {
+                return res.status(400).json({ message: 'Already exist' });
+            }
+        }
+
         // Handle image upload if a file is provided
         if (req.file) {
             try {
@@ -76,6 +89,28 @@ const updateQuestion = async (req, res) => {
 
         if (question.facultyId.toString() !== req.user.id) {
             return res.status(401).json({ message: 'User not authorized' });
+        }
+
+        // Duplicate check on update
+        const newText = req.body.question !== undefined ? req.body.question : question.question;
+        const newLanguageId = req.body.languageId || question.languageId;
+        const newTopicId = req.body.topicId || question.topicId;
+
+        if (
+            newText && // only check if it actually has text
+            (newText !== question.question ||
+                newLanguageId.toString() !== question.languageId.toString() ||
+                newTopicId.toString() !== question.topicId.toString())
+        ) {
+            const questionExists = await Question.findOne({
+                question: newText,
+                languageId: newLanguageId,
+                topicId: newTopicId,
+                facultyId: req.user.id
+            });
+            if (questionExists) {
+                return res.status(400).json({ message: 'Already exist' });
+            }
         }
 
         let updateData = { ...req.body };
