@@ -43,8 +43,7 @@ const createQuestion = async (req, res) => {
             const questionExists = await Question.findOne({
                 question,
                 languageId,
-                topicId,
-                facultyId: req.user.id
+                topicId
             });
             if (questionExists) {
                 return res.status(400).json({ message: 'Already exist' });
@@ -91,10 +90,6 @@ const updateQuestion = async (req, res) => {
             return res.status(404).json({ message: 'Question not found' });
         }
 
-        if (question.facultyId.toString() !== req.user.id) {
-            return res.status(401).json({ message: 'User not authorized' });
-        }
-
         // Duplicate check on update
         const newText = req.body.question !== undefined ? req.body.question : question.question;
         const newLanguageId = req.body.languageId || question.languageId;
@@ -109,8 +104,7 @@ const updateQuestion = async (req, res) => {
             const questionExists = await Question.findOne({
                 question: newText,
                 languageId: newLanguageId,
-                topicId: newTopicId,
-                facultyId: req.user.id
+                topicId: newTopicId
             });
             if (questionExists) {
                 return res.status(400).json({ message: 'Already exist' });
@@ -151,10 +145,6 @@ const deleteQuestion = async (req, res) => {
             return res.status(404).json({ message: 'Question not found' });
         }
 
-        if (question.facultyId.toString() !== req.user.id) {
-            return res.status(401).json({ message: 'User not authorized' });
-        }
-
         await question.deleteOne();
 
         res.status(200).json({ id: req.params.id });
@@ -176,7 +166,7 @@ const reorderQuestions = async (req, res) => {
     try {
         const bulkOps = questions.map(q => ({
             updateOne: {
-                filter: { _id: q._id, facultyId: req.user.id },
+                filter: { _id: q._id }, // Removed ownership check
                 update: { order: q.order }
             }
         }));

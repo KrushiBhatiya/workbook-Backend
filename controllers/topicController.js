@@ -33,8 +33,7 @@ const createTopic = async (req, res) => {
     try {
         const topicExists = await Topic.findOne({
             name,
-            languageId,
-            facultyId: req.user.id
+            languageId
         });
 
         if (topicExists) {
@@ -66,10 +65,6 @@ const updateTopic = async (req, res) => {
             return res.status(404).json({ message: 'Topic not found' });
         }
 
-        if (topic.facultyId.toString() !== req.user.id) {
-            return res.status(401).json({ message: 'User not authorized' });
-        }
-
         // Duplicate check on update
         const newName = req.body.name || topic.name;
         const newLanguageId = req.body.languageId || topic.languageId;
@@ -77,8 +72,7 @@ const updateTopic = async (req, res) => {
         if (newName !== topic.name || newLanguageId.toString() !== topic.languageId.toString()) {
             const topicExists = await Topic.findOne({
                 name: newName,
-                languageId: newLanguageId,
-                facultyId: req.user.id
+                languageId: newLanguageId
             });
             if (topicExists) {
                 return res.status(400).json({ message: 'Already exist' });
@@ -107,7 +101,7 @@ const deleteTopic = async (req, res) => {
         }
 
         if (topic.facultyId.toString() !== req.user.id) {
-            return res.status(401).json({ message: 'User not authorized' });
+            // Permission check removed for global faculty access
         }
 
         await topic.deleteOne();
@@ -131,7 +125,7 @@ const reorderTopics = async (req, res) => {
 
         const bulkOps = topics.map(({ _id, order }) => ({
             updateOne: {
-                filter: { _id, facultyId: req.user.id }, // Verify ownership
+                filter: { _id }, // Removed ownership check
                 update: { $set: { order } }
             }
         }));

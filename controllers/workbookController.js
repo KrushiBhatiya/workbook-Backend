@@ -36,7 +36,7 @@ const createWorkbook = async (req, res) => {
         // Check if workbook for this course already exists, if so, maybe update it?
         // Or "No duplicate entries allowed" means don't creating identical mapping.
         // Let's assume one workbook configuration per course for simplicity, or just update the existing one.
-        let workbook = await Workbook.findOne({ courseId, facultyId: req.user.id });
+        let workbook = await Workbook.findOne({ courseId });
 
         if (workbook) {
             // Update existing

@@ -10,7 +10,7 @@ const bcrypt = require('bcryptjs');
 // @access  Private (Faculty)
 const getStudents = async (req, res) => {
     try {
-        const query = req.user.role === 'admin' ? {} : { facultyId: req.user.id };
+        const query = {}; // Return all students for faculty/admin
         const students = await Student.find(query)
             .populate('courseId', 'name')
             .populate('allowedLanguageIds', 'name');
@@ -81,10 +81,6 @@ const updateStudent = async (req, res) => {
             return res.status(404).json({ message: 'Student not found' });
         }
 
-        if (student.facultyId.toString() !== req.user.id) {
-            return res.status(401).json({ message: 'User not authorized' });
-        }
-
         // If password is being updated, hash it
         if (req.body.password) {
             const salt = await bcrypt.genSalt(10);
@@ -110,10 +106,6 @@ const deleteStudent = async (req, res) => {
 
         if (!student) {
             return res.status(404).json({ message: 'Student not found' });
-        }
-
-        if (student.facultyId.toString() !== req.user.id) {
-            return res.status(401).json({ message: 'User not authorized' });
         }
 
         await student.deleteOne();

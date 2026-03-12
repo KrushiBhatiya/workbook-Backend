@@ -51,10 +51,7 @@ exports.createMaterial = async (req, res) => {
 // @access  Private (Faculty/Admin)
 exports.getMaterials = async (req, res) => {
     try {
-        let query = {};
-        if (req.user.role === 'faculty') {
-            query.facultyId = req.user.id;
-        }
+        const query = {}; // Return all materials for faculty/admin
 
 
         const materials = await Material.find(query).populate('courseIds', 'name').sort({ order: 1, createdAt: 1 });
@@ -247,7 +244,7 @@ exports.reorderMaterials = async (req, res) => {
 
         const bulkOps = materials.map(({ _id, order }) => ({
             updateOne: {
-                filter: { _id, facultyId: req.user.id },
+                filter: { _id }, // Removed ownership check
                 update: { $set: { order } }
             }
         }));

@@ -14,14 +14,18 @@ const { uploadPhoto } = require('../utils/cloudinary');
 const getSubmissions = async (req, res) => {
     try {
         const { date, studentName, facultyId } = req.query;
-        // Use provided facultyId or default to the logged-in user's ID
-        // Note: For a "Faculty Wise" filter to work effectively, the user should ideally be able to see other's data 
-        // or this is an admin feature. If it's a faculty panel, we allow filtering by other faculties 
-        // (assuming the requirement implies visibility).
-        const targetFacultyId = facultyId || req.user.id;
 
-        // 1. Get all students for this faculty
-        let studentQuery = { facultyId: targetFacultyId };
+        let studentQuery = {};
+        if (facultyId && facultyId !== 'all') {
+            studentQuery.facultyId = facultyId;
+        } else if (facultyId === 'all') {
+            // Show all students
+            studentQuery = {};
+        } else {
+            // Default to all students if no facultyId is provided (as per previous global access req)
+            // But usually the frontend will provide it now.
+            studentQuery = {};
+        }
 
         // Filter by student name if provided
         if (studentName) {
