@@ -9,7 +9,9 @@ const {
     appendPDF,
     deletePDF,
     deleteMaterial,
-    getStudentMaterials
+    getStudentMaterials,
+    reorderMaterials,
+    reorderPDFs
 } = require('../controllers/materialController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -35,6 +37,9 @@ router.get('/student', authorize('student'), getStudentMaterials);
 
 // Restrict other routes to faculty/admin
 router.use(authorize('faculty', 'admin'));
+
+router.patch('/reorder', reorderMaterials);
+router.patch('/:id/reorder-pdfs', reorderPDFs);
 
 router.route('/')
     .post(upload.single('pdf'), createMaterial)

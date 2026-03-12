@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getQuestions, createQuestion, updateQuestion, deleteQuestion } = require('../controllers/questionController');
+const { getQuestions, createQuestion, updateQuestion, deleteQuestion, reorderQuestions } = require('../controllers/questionController');
 const { protect, facultyOnly } = require('../middleware/authMiddleware');
 const multer = require('multer');
 
@@ -26,6 +26,8 @@ const upload = multer({
 router.route('/')
     .get(protect, getQuestions)
     .post(protect, facultyOnly, upload.single('image'), createQuestion);
+
+router.patch('/reorder', protect, facultyOnly, reorderQuestions);
 
 router.route('/:id')
     .put(protect, facultyOnly, upload.single('image'), updateQuestion)

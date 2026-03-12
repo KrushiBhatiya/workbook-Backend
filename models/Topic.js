@@ -14,6 +14,10 @@ const topicSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         required: true,
         ref: 'User'
+    },
+    order: {
+        type: Number,
+        default: 0
     }
 }, { timestamps: true });
 

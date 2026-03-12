@@ -1,7 +1,8 @@
 const Submission = require('../models/Submission');
 const Student = require('../models/Student'); // Import Student model
 const Question = require('../models/Question'); // Import Question model
-const { validateAnswer } = require('../utils/geminiService');
+const { validateAnswer } = require('../utils/groqService');
+const { validateImageAnswer } = require('../utils/cloudflareService');
 const { uploadPhoto } = require('../utils/cloudinary');
 
 // @desc    Get submissions
@@ -133,7 +134,19 @@ const createSubmission = async (req, res) => {
         }
         const languageName = questionData.languageId?.name || '';
         try {
-            const validation = await validateAnswer(questionData.question, answerText, languageName, imageUrl);
+            let validation;
+            if (imageUrl) {
+                try {
+                    validation = await validateImageAnswer(questionData.question, answerText, languageName, imageUrl);
+                } catch (cfError) {
+                    console.error("Cloudflare AI Validation failed, falling back to Groq:", cfError.message);
+                    // Fallback to Groq if Cloudflare fails (e.g. invalid token)
+                    validation = await validateAnswer(questionData.question, answerText, languageName, imageUrl);
+                }
+            } else {
+                validation = await validateAnswer(questionData.question, answerText, languageName, null);
+            }
+
             if (!validation.isValid) {
                 // Return 400 with the AI's feedback message — do NOT save the submission
                 return res.status(400).json({ message: validation.message });

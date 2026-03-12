@@ -18,7 +18,7 @@ const getQuestions = async (req, res) => {
         const questions = await Question.find(query)
             .populate('topicId', 'name')
             .populate('languageId', 'name')
-            .sort({ createdAt: 1 }); // Ensure stable order within topics
+            .sort({ order: 1, createdAt: 1 }); // Sorted by order, then time
 
         res.status(200).json(questions);
     } catch (error) {
@@ -62,13 +62,17 @@ const createQuestion = async (req, res) => {
             }
         }
 
+        // Get count of questions in this topic for auto-ordering
+        const count = await Question.countDocuments({ topicId });
+
         const questionData = await Question.create({
             question,
             languageId,
             topicId,
             facultyId: req.user.id,
             validationLogic: validationLogic || '',
-            imageUrl
+            imageUrl,
+            order: count
         });
         res.status(200).json(questionData);
     } catch (error) {
@@ -159,9 +163,35 @@ const deleteQuestion = async (req, res) => {
     }
 };
 
+// @desc    Bulk Reorder questions
+// @route   PATCH /api/questions/reorder
+// @access  Private (Faculty)
+const reorderQuestions = async (req, res) => {
+    const { questions } = req.body; // Array of { _id, order }
+
+    if (!Array.isArray(questions)) {
+        return res.status(400).json({ message: 'Questions array is required' });
+    }
+
+    try {
+        const bulkOps = questions.map(q => ({
+            updateOne: {
+                filter: { _id: q._id, facultyId: req.user.id },
+                update: { order: q.order }
+            }
+        }));
+
+        await Question.bulkWrite(bulkOps);
+        res.status(200).json({ message: 'Order updated successfully' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 module.exports = {
     getQuestions,
     createQuestion,
     updateQuestion,
-    deleteQuestion
+    deleteQuestion,
+    reorderQuestions
 };

@@ -27,8 +27,16 @@ const materialSchema = new mongoose.Schema({
         resource_type: {
             type: String,
             default: 'image'
+        },
+        order: {
+            type: Number,
+            default: 0
         }
     }],
+    order: {
+        type: Number,
+        default: 0
+    },
     facultyId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

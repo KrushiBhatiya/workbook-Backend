@@ -28,10 +28,14 @@ exports.createMaterial = async (req, res) => {
             });
         }
 
+
+        const materialCount = await Material.countDocuments({ facultyId: req.user.id });
+
         const material = await Material.create({
             name,
             courseIds: typeof courseIds === 'string' ? JSON.parse(courseIds) : courseIds,
             pdfs,
+            order: materialCount,
             facultyId: req.user.id
         });
 
@@ -52,7 +56,8 @@ exports.getMaterials = async (req, res) => {
             query.facultyId = req.user.id;
         }
 
-        const materials = await Material.find(query).populate('courseIds', 'name');
+
+        const materials = await Material.find(query).populate('courseIds', 'name').sort({ order: 1, createdAt: 1 });
         res.status(200).json(materials);
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
@@ -111,6 +116,8 @@ exports.appendPDF = async (req, res) => {
             // Upload to Cloudinary with descriptive name and metadata
             const result = await uploadImage(file.buffer, 'workbook/materials', finalName, finalName);
 
+            const pdfCount = material.pdfs.length;
+
             console.log('Append Final Result:', {
                 url: result.secure_url,
                 resource_type: result.resource_type,
@@ -121,7 +128,8 @@ exports.appendPDF = async (req, res) => {
                 name: finalName,
                 url: result.secure_url,
                 public_id: result.public_id,
-                resource_type: result.resource_type
+                resource_type: result.resource_type,
+                order: pdfCount
             });
             index++;
         }
@@ -217,11 +225,85 @@ exports.getStudentMaterials = async (req, res) => {
         // Fetch materials that include the student's courseId in their courseIds array
         const materials = await Material.find({
             courseIds: student.courseId
-        }).populate('courseIds', 'name');
+        }).populate('courseIds', 'name').sort({ order: 1, createdAt: 1 });
 
         res.status(200).json(materials);
     } catch (error) {
         console.error('Error fetching student materials:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+// @desc    Reorder materials
+// @route   PATCH /api/materials/reorder
+// @access  Private (Faculty/Admin)
+exports.reorderMaterials = async (req, res) => {
+    try {
+        const { materials } = req.body;
+
+        if (!Array.isArray(materials)) {
+            return res.status(400).json({ message: 'Invalid data format' });
+        }
+
+        const bulkOps = materials.map(({ _id, order }) => ({
+            updateOne: {
+                filter: { _id, facultyId: req.user.id },
+                update: { $set: { order } }
+            }
+        }));
+
+        if (bulkOps.length > 0) {
+            await Material.bulkWrite(bulkOps);
+        }
+
+        res.status(200).json({ message: 'Materials order updated successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+// @desc    Reorder PDFs within a material
+// @route   PATCH /api/materials/:id/reorder-pdfs
+// @access  Private (Faculty/Admin)
+exports.reorderPDFs = async (req, res) => {
+    try {
+        const { pdfs } = req.body;
+        const material = await Material.findById(req.params.id);
+
+        if (!material) {
+            return res.status(404).json({ message: 'Material not found' });
+        }
+
+        if (!Array.isArray(pdfs)) {
+            return res.status(400).json({ message: 'Invalid data format' });
+        }
+
+        // Reorder the pdfs array based on the provided order of public_ids or full objects
+        // Assuming pdfs is an array of objects with public_id and order
+        const newPdfs = [...material.pdfs];
+        
+        // Map current pdfs for quick lookup
+        const pdfMap = {};
+        newPdfs.forEach(p => { pdfMap[p.public_id] = p; });
+
+        // Create new array in correct order
+        const reorderedPdfs = pdfs.map(p => {
+            const originalPdf = pdfMap[p.public_id];
+            if (originalPdf) {
+                originalPdf.order = p.order;
+                return originalPdf;
+            }
+            return null;
+        }).filter(p => p !== null);
+
+        // Sort by order
+        reorderedPdfs.sort((a, b) => a.order - b.order);
+
+        material.pdfs = reorderedPdfs;
+        await material.save();
+
+        res.status(200).json(material);
+    } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };

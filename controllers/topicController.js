@@ -13,7 +13,7 @@ const getTopics = async (req, res) => {
 
         const topics = await Topic.find(query)
             .populate('languageId', 'name')
-            .sort({ createdAt: 1 }); // Ensure stable order for sequential progression
+            .sort({ order: 1, createdAt: 1 }); // Sort by order, then creation Date
         res.status(200).json(topics);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -41,10 +41,13 @@ const createTopic = async (req, res) => {
             return res.status(400).json({ message: 'Already exist' });
         }
 
+        const topicCount = await Topic.countDocuments({ languageId });
+
         const topic = await Topic.create({
             name,
             languageId,
-            facultyId: req.user.id
+            facultyId: req.user.id,
+            order: topicCount
         });
         res.status(200).json(topic);
     } catch (error) {
@@ -115,9 +118,38 @@ const deleteTopic = async (req, res) => {
     }
 };
 
+// @desc    Reorder topics
+// @route   PATCH /api/topics/reorder
+// @access  Private (Faculty)
+const reorderTopics = async (req, res) => {
+    try {
+        const { topics } = req.body;
+
+        if (!Array.isArray(topics)) {
+            return res.status(400).json({ message: 'Invalid data format' });
+        }
+
+        const bulkOps = topics.map(({ _id, order }) => ({
+            updateOne: {
+                filter: { _id, facultyId: req.user.id }, // Verify ownership
+                update: { $set: { order } }
+            }
+        }));
+
+        if (bulkOps.length > 0) {
+            await Topic.bulkWrite(bulkOps);
+        }
+
+        res.status(200).json({ message: 'Order updated successfully' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 module.exports = {
     getTopics,
     createTopic,
     updateTopic,
-    deleteTopic
+    deleteTopic,
+    reorderTopics
 };

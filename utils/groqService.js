@@ -1,13 +1,12 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require("groq-sdk");
 const dotenv = require('dotenv');
 
 dotenv.config();
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 /**
- * Validates a student's answer using Gemini AI.
+ * Validates a student's answer using Groq AI.
  * Can evaluate text answers and/or images of handwritten work.
  * @param {string} question - The question text.
  * @param {string} studentAnswer - The answer provided by the student.
@@ -44,32 +43,43 @@ STRICT RULES:
 
 YOUR RESPONSE:`;
 
-        let result;
+        let chatCompletion;
         if (imageUrl) {
-            // Fetch the image and convert to base64 for Gemini
-            const response = await fetch(imageUrl);
-            const buffer = await response.arrayBuffer();
-            const base64Data = Buffer.from(buffer).toString('base64');
-            const mimeType = response.headers.get('content-type') || 'image/jpeg';
-
-            result = await model.generateContent([
-                prompt,
-                {
-                    inlineData: {
-                        data: base64Data,
-                        mimeType: mimeType
+            // Use the public URL directly if available, otherwise convert to base64
+            // Since Cloudinary URLs are public, we can pass them directly to Groq
+            chatCompletion = await groq.chat.completions.create({
+                messages: [
+                    {
+                        role: "user",
+                        content: [
+                            { type: "text", text: prompt },
+                            {
+                                type: "image_url",
+                                image_url: {
+                                    url: imageUrl
+                                }
+                            }
+                        ]
                     }
-                }
-            ]);
+                ],
+                model: "meta-llama/llama-4-scout-17b-16e-instruct",
+            });
         } else {
-            result = await model.generateContent(prompt);
+            chatCompletion = await groq.chat.completions.create({
+                messages: [
+                    {
+                        role: "user",
+                        content: prompt
+                    }
+                ],
+                model: "llama-3.3-70b-versatile",
+            });
         }
 
-        const responseText = await result.response;
-        const text = responseText.text().trim();
+        const text = chatCompletion.choices[0]?.message?.content?.trim() || "";
 
         // Log for debugging
-        console.log(`[Gemini] Lang: "${languageName}" | Q: "${question}" | A: "${studentAnswer}" | Image: ${imageUrl ? 'Yes' : 'No'} | Response: "${text}"`);
+        console.log(`[Groq] Lang: "${languageName}" | Q: "${question}" | A: "${studentAnswer}" | Image: ${imageUrl ? 'Yes' : 'No'} | Response: "${text}"`);
 
         // Check if the response indicates correctness. 
         // We look for the word "CORRECT" at the end, but ensure it's not "INCORRECT".
@@ -83,7 +93,7 @@ YOUR RESPONSE:`;
             return { isValid: false, message: text || "Incorrect... Try Again." };
         }
     } catch (error) {
-        console.error("Gemini Validation Error:", error);
+        console.error("Groq Validation Error:", error);
         throw new Error("AI Validation failed. Please try again later.");
     }
 };
