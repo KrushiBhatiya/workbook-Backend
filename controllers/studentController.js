@@ -10,10 +10,14 @@ const bcrypt = require('bcryptjs');
 // @access  Private (Faculty)
 const getStudents = async (req, res) => {
     try {
-        const query = {}; // Return all students for faculty/admin
+        // If a specific facultyId is provided in query, use it; otherwise default to logged-in faculty
+        const facultyId = req.query.facultyId || req.user.id;
+        const query = { facultyId };
+
         const students = await Student.find(query)
             .populate('courseId', 'name')
-            .populate('allowedLanguageIds', 'name');
+            .populate('allowedLanguageIds', 'name')
+            .populate('facultyId', 'name');
         res.status(200).json(students);
     } catch (error) {
         res.status(500).json({ message: error.message });
