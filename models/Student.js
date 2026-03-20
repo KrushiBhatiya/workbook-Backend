@@ -35,6 +35,15 @@ const studentSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         required: true,
         ref: 'User'
+    },
+    status: {
+        type: String,
+        enum: ['Pending', 'Approved'],
+        default: 'Approved'
+    },
+    googleId: {
+        type: String,
+        sparse: true
     }
 }, { timestamps: true });
 

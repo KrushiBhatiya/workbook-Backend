@@ -1,11 +1,10 @@
+require('dotenv').config();
 const express = require('express');
-const dotenv = require('dotenv');
 const cors = require('cors');
 const connectDB = require('./config/db');
 
 const { seedAdmin, seedDefaultFaculty } = require('./controllers/authController');
 
-dotenv.config();
 
 connectDB().then(() => {
     seedAdmin();
@@ -29,6 +28,7 @@ app.use('/api/workbooks', require('./routes/workbookRoutes'));
 app.use('/api/submissions', require('./routes/submissionRoutes'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
 app.use('/api/materials', require('./routes/materialRoutes'));
+app.use('/api/reports', require('./routes/reportRoutes'));
 
 const PORT = process.env.PORT || 5000;
 

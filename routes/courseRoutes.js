@@ -4,7 +4,7 @@ const { getCourses, createCourse, updateCourse, deleteCourse } = require('../con
 const { protect, facultyOnly } = require('../middleware/authMiddleware');
 
 router.route('/')
-    .get(protect, getCourses)
+    .get(getCourses)
     .post(protect, facultyOnly, createCourse);
 
 router.route('/:id')

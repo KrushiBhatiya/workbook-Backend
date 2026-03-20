@@ -12,7 +12,7 @@ const adminOnly = (req, res, next) => {
 };
 
 router.route('/')
-    .get(protect, getFaculties)
+    .get(getFaculties)
     .post(protect, addFaculty);
 
 router.route('/:id')
