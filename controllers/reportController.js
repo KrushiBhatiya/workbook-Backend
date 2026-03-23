@@ -4,7 +4,9 @@ const nodemailer = require('nodemailer');
 const axios = require('axios');
 
 // Helper to send email
-const sendReportEmail = async (student, report, languageName, topicName, googleAccessToken) => {
+const sendReportEmail = async (student, report, languageName, topicNames, googleAccessToken) => {
+    console.log("topicNames ==> ", topicNames);
+
     // Check if we have an OAuth token (from student) or system credentials
     const useOAuth = !!googleAccessToken;
     const useSystem = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
@@ -16,12 +18,12 @@ const sendReportEmail = async (student, report, languageName, topicName, googleA
 
     try {
         const formattedDate = report.date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-        
+
         const mailOptions = {
             from: useOAuth ? `"${student.name}" <${student.email}>` : `"${student.name}" <${process.env.EMAIL_USER}>`,
             to: 'cdmi.project@gmail.com',
             subject: `Today's Report - ${formattedDate}`,
-            text: `Today's Report - ${formattedDate}\n\nStudent: ${student.name}\nBatch: ${student.batchTime}\nLanguage: ${languageName}\nTopic: ${topicName}\n\nDescription:\n${report.description}`,
+            text: `Today's Report - ${formattedDate}\n\nStudent: ${student.name}\nBatch: ${student.batchTime}\nLanguage: ${languageName}\nTopics: ${topicNames}\n\nDescription:\n${report.description}`,
             html: `
                 <div style="max-width: 600px; margin: 0 auto; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; padding: 20px; border-radius: 20px;">
                     <div style="background-color: #ffffff; padding: 40px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
@@ -48,7 +50,7 @@ const sendReportEmail = async (student, report, languageName, topicName, googleA
                                 </tr>
                                 <tr>
                                     <td style="padding: 12px 0; color: #64748b; font-size: 14px; font-weight: 600;">Topic</td>
-                                    <td style="padding: 12px 0; color: #1e293b; font-size: 14px; font-weight: 700;">${topicName}</td>
+                                    <td style="padding: 12px 0; color: #1e293b; font-size: 14px; font-weight: 700;">${topicNames}</td>
                                 </tr>
                             </table>
                         </div>
@@ -101,11 +103,11 @@ const sendReportEmail = async (student, report, languageName, topicName, googleA
         // Detailed logging to a file for debugging
         const fs = require('fs');
         const logMsg = `\n[${new Date().toISOString()}] ERROR: ${error.response?.data?.error?.message || error.message}\n` +
-                    `TYPE: ${googleAccessToken ? 'GMAIL API' : 'System SMTP'}\n` +
-                    `STATUS: ${error.response?.status || 'N/A'}\n` +
-                    `------------------------------------------\n`;
+            `TYPE: ${googleAccessToken ? 'GMAIL API' : 'System SMTP'}\n` +
+            `STATUS: ${error.response?.status || 'N/A'}\n` +
+            `------------------------------------------\n`;
         fs.appendFileSync('email_debug.log', logMsg);
-        
+
         console.error('❌ Error sending email:', error.response?.data?.error?.message || error.message);
         return false;
     }
@@ -116,8 +118,8 @@ const sendReportEmail = async (student, report, languageName, topicName, googleA
 // @access  Private (Student)
 exports.submitReport = async (req, res) => {
     try {
-        const { date, languageId, topicId, description, languageName, topicName, googleAccessToken } = req.body;
-        
+        const { date, languageId, topicIds, description, languageName, topicNames, googleAccessToken } = req.body;
+
         // Find the Student document corresponding to the logged-in User
         const student = await Student.findOne({ email: req.user.email });
         if (!student) {
@@ -137,19 +139,19 @@ exports.submitReport = async (req, res) => {
             facultyId: student.facultyId,
             date: new Date(date),
             languageId,
-            topicId,
+            topicIds: Array.isArray(topicIds) ? topicIds : [topicIds],
             description
         });
 
         // Send email in background (don't await)
-        sendReportEmail(student, report, languageName, topicName, googleAccessToken)
+        sendReportEmail(student, report, languageName, topicNames || '', googleAccessToken)
             .then(sent => {
                 if (!sent) console.log('Background email sending failed.');
             })
             .catch(err => console.error('Background email error:', err));
 
-        res.status(201).json({ 
-            success: true, 
+        res.status(201).json({
+            success: true,
             data: report
         });
     } catch (error) {
@@ -169,7 +171,7 @@ exports.getStudentReports = async (req, res) => {
 
         const reports = await Report.find({ studentId: student._id })
             .populate('languageId', 'name')
-            .populate('topicId', 'name order');
+            .populate('topicIds', 'name order');
         res.status(200).json({ success: true, count: reports.length, data: reports });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -206,7 +208,7 @@ exports.getFacultyReports = async (req, res) => {
         let reports = await Report.find(query)
             .populate('studentId', 'name batchTime')
             .populate('languageId', 'name')
-            .populate('topicId', 'name order');
+            .populate('topicIds', 'name order');
 
         // Filter by student name if provided
         if (studentName) {
@@ -227,7 +229,7 @@ exports.getFacultyReports = async (req, res) => {
             const submittedStudentIds = reports.map(r => r.studentId._id.toString());
 
             nonSubmitted = allStudents.filter(s => !submittedStudentIds.includes(s._id.toString()));
-            
+
             if (studentName) {
                 nonSubmitted = nonSubmitted.filter(s => s.name.toLowerCase().includes(studentName.toLowerCase()));
             }

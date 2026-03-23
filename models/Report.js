@@ -20,10 +20,10 @@ const reportSchema = new mongoose.Schema({
         required: true,
         ref: 'Language'
     },
-    topicId: {
-        type: mongoose.Schema.Types.ObjectId,
+    topicIds: {
+        type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Topic' }],
         required: true,
-        ref: 'Topic'
+        validate: { validator: (v) => v.length > 0, message: 'At least one topic is required' }
     },
     description: {
         type: String,

@@ -56,19 +56,19 @@ const registerUser = async (req, res) => {
         role
     });
 
-        if (user) {
-            // If student, check if they need approval (they always do on self-registration)
-            const token = generateToken(user._id, user.role);
-            res.status(201).json({
-                _id: user.id,
-                name: user.name,
-                email: user.email,
-                username: user.username,
-                role: user.role,
-                status: user.role === 'student' ? 'Pending' : 'Approved',
-                token: token
-            });
-        } else {
+    if (user) {
+        // If student, check if they need approval (they always do on self-registration)
+        const token = generateToken(user._id, user.role);
+        res.status(201).json({
+            _id: user.id,
+            name: user.name,
+            email: user.email,
+            username: user.username,
+            role: user.role,
+            status: user.role === 'student' ? 'Pending' : 'Approved',
+            token: token
+        });
+    } else {
         res.status(400).json({ message: 'Invalid user data' });
     }
 };
@@ -92,7 +92,7 @@ const loginUser = async (req, res) => {
         if (user.role === 'student') {
             const studentProfile = await Student.findOne({ email: user.email });
             if (studentProfile && studentProfile.status === 'Pending') {
-                return res.status(200).json({ 
+                return res.status(200).json({
                     _id: user.id,
                     name: user.name,
                     username: user.username,
@@ -100,7 +100,7 @@ const loginUser = async (req, res) => {
                     role: user.role,
                     status: 'Pending',
                     token: generateToken(user._id, user.role),
-                    message: 'Your account is pending CDMI approval.' 
+                    message: 'Your account is pending CDMI approval.'
                 });
             }
         }
@@ -135,7 +135,7 @@ const googleLogin = async (req, res) => {
             if (user.role === 'student') {
                 // If it's a student, check their Student profile status
                 const studentProfile = await Student.findOne({ email });
-                
+
                 if (!studentProfile) {
                     // Profile missing but User exists? Redirect to registration.
                     return res.status(200).json({
@@ -147,7 +147,7 @@ const googleLogin = async (req, res) => {
                 }
 
                 if (studentProfile.status === 'Pending') {
-                    return res.status(200).json({ 
+                    return res.status(200).json({
                         _id: user.id,
                         name: user.name,
                         username: user.username,
@@ -155,7 +155,7 @@ const googleLogin = async (req, res) => {
                         role: user.role,
                         status: 'Pending',
                         token: generateToken(user._id, user.role),
-                        message: 'Your account is pending CDMI approval.' 
+                        message: 'Your account is pending CDMI approval.'
                     });
                 }
             }

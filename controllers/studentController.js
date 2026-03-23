@@ -153,7 +153,7 @@ const approveStudent = async (req, res) => {
         // Only allow faculty to approve if they are assigned to this student, 
         // or bypass if admin (assuming faculty context for now)
         if (student.facultyId.toString() !== req.user.id && req.user.role !== 'admin') {
-             return res.status(401).json({ message: 'Not authorized to approve this student' });
+            return res.status(401).json({ message: 'Not authorized to approve this student' });
         }
 
         student.status = 'Approved';
